@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from mpl_toolkits.mplot3d import Axes3D
+
+# Global parameters
+strategy = 1
+trains = 4
+file = f"dataModels{trains}"
 
 
 def color(status):
@@ -9,9 +13,9 @@ def color(status):
     elif status == 0:  # failed both
         return ["Failed both", "#FF0000"]
     elif status == 1:  # passed enoughSOC
-        return ["Passed only enoughSOC", "#A00000"]
+        return ["Passed only enoughSOC", "orange"]
     elif status == 2:  # passed trainsInTime
-        return ["Passed only trainsInTime", "#00A000"]
+        return ["Passed only trainsInTime", "#00FFFF"]
     elif status == 3:  # passed both
         return ["Passed both", "#00FF00"]
     else:
@@ -19,18 +23,13 @@ def color(status):
         return ["Invalid", "#000000"]
 
 
-strategy = 2
-trains = 5
-
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111, projection='3d')
 
 ax.set_title(f"Strategy {strategy} with {trains} trains")
-ax.set_xlabel("rate of discharge")
-ax.set_ylabel("Velocity")
-ax.set_zlabel("rate of charge")
-
-file = f"dataModels{trains}-spedUp"
+ax.set_xlabel("Rate of discharge")
+ax.set_ylabel("Speed of the trains")
+ax.set_zlabel("Rate of charge")
 
 # generating legend
 legend_elements = []
