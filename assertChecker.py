@@ -1,7 +1,7 @@
 from os import system
 import subprocess
 import re
-from model4 import model
+from model import model
 
 t = """Options for the verification:
   Generating no trace
@@ -22,6 +22,14 @@ Verifying formula 3 at /nta/queries/query[3]/formula
 Verifying formula 4 at /nta/queries/query[4]/formula
 ←[2K -- Formula is satisfied., Load: 87 states←[K"""
 
+# t0.SOC0 >= t0.Cdis*t0.estimatedTimeTravelling() #
+# t0.SOCmax >= (maxDistance*t0.Cdis*60/t0.V)
+distance0 = 8
+distance4 = 10
+maxDistance = 17
+SOC0 = 60
+SOCmax = 100
+
 findTestsResults = r"Verifying formula (\d*)(?:.*?)Formula is(.*?)satisfied"
 
 pathVerifyta = "verifyta.exe"
@@ -29,6 +37,14 @@ pathModelToVerify = "C:\\Users\\emili\\OneDrive - Politecnico di Milano\\Desktop
 
 
 # pathHomework = "C:\\Users\\emili\\OneDrive - Politecnico di Milano\\Desktop\\Backup\\POLITECNICO\\4ANNO\\2-FORMAL METHODS FOR REAL-TIME SYSTEMS\\Homework\\Homework.xml"
+
+def checkValidityInScript(Cdis, V):
+    # t0.Init imply (t0.SOC >= t0.Cdis*t0.estimatedTimeTravelling())  # int estimatedTimeTravelling(){return nextDistance() * 60 / V}
+    # t0.SOCmax >= (maxDistance*t0.Cdis*60/t0.V)
+    if (SOC0 >= Cdis * (distance4 * 60 / V)) and (SOCmax >= maxDistance * Cdis * 60 / V):
+        return True
+
+    return False
 
 
 def parseResults(res):
@@ -54,16 +70,16 @@ def checkProperties(asserts, i, f):
     return True
 
 
-def checkValidity(asserts):
-    return checkProperties(asserts, 0, 2)
+# def checkValidity(asserts):
+#    return checkProperties(asserts, 0, 2)
 
 
 def checkEnoughSOC(asserts):
-    return checkProperties(asserts, 2, 3)
+    return checkProperties(asserts, 0, 1)
 
 
 def checkInTime(asserts):
-    return checkProperties(asserts, 3, 4)
+    return checkProperties(asserts, 1, 2)
 
 
 # def checkDeadlock(asserts):
@@ -77,10 +93,10 @@ def checkInTime(asserts):
 def generateModel(strategy, minTimeInStation, Crec, Cdis, V):
     with open(pathModelToVerify, "w") as modelToCheck:
         modelToCheck.write(model.format(strategy=strategy,
-                                              minTimeInStation=minTimeInStation,
-                                              Crec=Crec,
-                                              Cdis=Cdis,
-                                              V=V)
+                                        minTimeInStation=minTimeInStation,
+                                        Crec=Crec,
+                                        Cdis=Cdis,
+                                        V=V)
                            )
     print(f"\nCreated model for str={strategy}, timeInStation={minTimeInStation}, Crec={Crec}, Cdis={Cdis}, V={V}")
 
@@ -118,15 +134,15 @@ def restartFromLastChecked(lastChecked, minTimeInStation, strategy, Crec, Cdis, 
 
 # retryTime = [1]  # R -> fixed to 1
 chargingStrategies = [1, 2]
-minTimeInStations = [1, 2, 3, 4]
+minTimeInStations = [1] # [1, 2, 3, 4]
 Crecs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 Cdiss = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 Vs = [120, 150, 180, 210, 240]
 
-lastChecked = [0, 0, 0, 0, 0, 0, 0]
-timeout = 7*60 #seconds: 10 minutes
+lastChecked = [0, 0, 0, 0, 0]  # [1, 2, 3, 10, 150]
+timeout = 7 * 60  # seconds: 10 minutes
 
-with open("dataModels4.csv", "a") as csv:
+with open("dataModels5-spedUp.csv", "a") as csv:
     csv.write("strategy,minTimeInStation,Crec,Cdis,V,status\n")
     for minTimeInStation in minTimeInStations:
         for strategy in chargingStrategies:
@@ -142,24 +158,25 @@ with open("dataModels4.csv", "a") as csv:
                     for V in Vs:
                         if not restartFromLastChecked(lastChecked, minTimeInStation, strategy, Crec, Cdis, V):
                             continue
-                        # generate the file for the model
-                        generateModel(strategy, minTimeInStation, Crec, Cdis, V)
 
-                        verified = 0
-                        asserts = [0, 0, 0, 0, 0, 0, 0, 0]
-                        # executing the verification of the model with UPPAAL
-                        try:
-                            output = subprocess.run([pathVerifyta, pathModelToVerify], stdout=subprocess.PIPE,
-                                                    timeout=timeout)
-                            asserts = parseResults(output.stdout.decode('utf-8'))
-                            verified = int(checkInTime(asserts)) << 1 + int(checkEnoughSOC(asserts))
-                        except subprocess.TimeoutExpired:
-                            verified = -1
-                            print(f"\tSKIPPED: verification took more than {timeout} seconds: terminated")
+                        # for time constraints we check the validity in the script
+                        if checkValidityInScript(Cdis, V):
+                            # generate the file for the model
+                            generateModel(strategy, minTimeInStation, Crec, Cdis, V)
 
-                        # parsing the result of the checks
-                        if (checkValidity(
-                                asserts) or verified == -1):  # and checkDeadlock(asserts) and checkLivelock(asserts)):
+                            verified = 0
+                            asserts = [0, 0, 0, 0, 0, 0, 0, 0]
+                            # executing the verification of the model with UPPAAL
+                            try:
+                                output = subprocess.run([pathVerifyta, pathModelToVerify], stdout=subprocess.PIPE,
+                                                        stderr=subprocess.DEVNULL, timeout=timeout)
+                                asserts = parseResults(output.stdout.decode('utf-8'))
+                                verified = (checkInTime(asserts) << 1) + checkEnoughSOC(asserts)
+                            except subprocess.TimeoutExpired:
+                                verified = -1
+                                print(f"\tSKIPPED: verification took more than {timeout} seconds: terminated")
+
+                            # parsing the result of the checks
                             print("\tENOUGH SOC: " + str(checkEnoughSOC(asserts)) +
                                   "\tMAX DELAY: " + str(checkInTime(asserts)) + " " +
                                   "\tResult: " + str(verified))
@@ -170,8 +187,8 @@ with open("dataModels4.csv", "a") as csv:
                             status.append(verified)
                         else:
                             print("\nNOT CORRECT!")
-                            print("\tCORRECT: " + str(checkValidity(
-                                asserts)))  # "\tDEADLOCK: " + str(checkDeadlock(asserts)) + "\tLIVELOCK: " + str(checkLivelock(asserts)))
+                            # print("\tCORRECT: " + str(checkValidity(asserts)))  # "\tDEADLOCK: " + str(
+                            # checkDeadlock(asserts)) + "\tLIVELOCK: " + str(checkLivelock(asserts)))
 
             plot(axisCrec, axisCdis, axisV, status)
 

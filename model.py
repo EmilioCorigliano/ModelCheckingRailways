@@ -1,18 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
+model = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
 <nta>
-	<declaration>/* PAMRAMETERS TO CHANGE */
+	<declaration>// Place global declarations here
 /**
  * 1: Just the time necessary to arrive without exceeding the maximum delay
  * 2: filling all the battery every time
 */
-const int chargingStrategy = 2; 
+const int chargingStrategy = {strategy}; 
 /** resubmission time [min] */
 const int R = 1;          
 /** Minimum time to pass in a station [min] */      
-const int minTimeInStation = 1; 
+const int minTimeInStation = {minTimeInStation}; 
 
-/* OTHER PAMRAMETERS */
 const int N_STATIONS = 7; // Number of stations 
 
 // channels
@@ -20,30 +19,30 @@ chan entry[N_STATIONS], accepted[N_STATIONS], departed[N_STATIONS];
 broadcast chan rejected[N_STATIONS];
 
 /// Railway
-typedef struct {
+typedef struct {{
     int distance;     // in km
     int maxDelay;     // in min
-} Link;
+}} Link;
 
-const Link railway_small[N_STATIONS-1] = {
-    {8, 5},  // Milano Centrale - Milano Lambrate
-    {17, 5},  // Milano Lambrate - Treviglio
-    {13, 5},  // Treviglio - Romano
-    {13, 5},  // Romano - Chiari
-    {10, 5},  // Chiari - Rovato
-    {15, 5}  // Rovato - Brescia
-};
+const Link railway_small[N_STATIONS-1] = {{
+    {{8, 5}},  // Milano Centrale - Milano Lambrate
+    {{17, 5}},  // Milano Lambrate - Treviglio
+    {{13, 5}},  // Treviglio - Romano
+    {{13, 5}},  // Romano - Chiari
+    {{10, 5}},  // Chiari - Rovato
+    {{15, 5}}  // Rovato - Brescia
+}};
 
 const Link railway[N_STATIONS-1] = railway_small;
 
-int maxTimeForStations(){
+int maxTimeForStations(){{
     int maxDistance = 0;
     int i=0;
-    for(i=0; i&lt;N_STATIONS-1; i++){
+    for(i=0; i&lt;N_STATIONS-1; i++){{
         maxDistance = maxDistance &gt;? railway[i].distance;
-    }
+    }}
     return maxDistance;
-}
+}}
 
 const int maxDistance = maxTimeForStations();
 </declaration>
@@ -64,71 +63,71 @@ clock timeForResubmission;
 
 int maxTimeForNextStation;   // Debug info
 
-bool isGoingForward(bool actualState){
+bool isGoingForward(bool actualState){{
     return (lastStation == 0 ? 
         true : 
         (lastStation == (N_STATIONS-1) ? 
             false : 
             actualState)
     );
-}
+}}
 
-int nextStation(){
+int nextStation(){{
     return goingForward ? lastStation+1 : lastStation-1;
-}
+}}
 
-int nextMaxDelay(){
+int nextMaxDelay(){{
     return (goingForward ? railway[lastStation].maxDelay : railway[lastStation-1].maxDelay);
-}
+}}
 
-int nextDistance(){
+int nextDistance(){{
     return (goingForward ? railway[lastStation].distance : railway[lastStation-1].distance);
-}
-int estimatedTimeTravelling(){
+}}
+int estimatedTimeTravelling(){{
     return nextDistance() * 60 / V;
-}
+}}
 
-int maximumTimeAvailable(){
+int maximumTimeAvailable(){{
     return (estimatedTimeTravelling() + nextMaxDelay());
-}
+}}
 
-int maximumTimeRequired(){
+int maximumTimeRequired(){{
     // selecting policy of recharging [min]
     int timeToRecharge = 0;
-    if(chargingStrategy == 1){
+    if(chargingStrategy == 1){{
         // Just the time necessary to arrive without exceeding the maximum delay
         timeToRecharge = maximumTimeAvailable();
-    } else if (chargingStrategy == 2) {
+    }} else if (chargingStrategy == 2) {{
         // filling all the battery every time
         timeToRecharge = SOCmax;
-    } else {
+    }} else {{
         // PUT SOMETHING HERE
-    }
+    }}
 
     /// policy of recharging
     return timeToRecharge;
-}
+}}
 
-int calculateDischargedSOC(){
+int calculateDischargedSOC(){{
     // return SOC - (Cdis*fint(timeTravelling));
     return SOC - (Cdis*(estimatedTimeTravelling() + nTimesRetried*R));
-}
+}}
 
-int rechargeTimeRequired(){
+int rechargeTimeRequired(){{
     /* convert maxTimeRequired in charge required for the battery, 
         take the amount of charge needed 
     */
     return ((((maximumTimeRequired()*Cdis - SOC)/Crec)+1) &gt;? 0);
-}
+}}
 
 
 /**
     - true if the train exceeded the maximum delay
     - false if the train is still in the acceptable range
 */
-bool exceededMaxDelay(){
+bool exceededMaxDelay(){{
     return fint(timeTravelling) &gt; (estimatedTimeTravelling() + nextMaxDelay());
-}
+}}
 
 /* State functions */
 /**
@@ -136,25 +135,25 @@ bool exceededMaxDelay(){
     - calculate the new discharged SOC
     - resetting clock
 */
-void arrivedToNextStation(){
+void arrivedToNextStation(){{
     SOC = calculateDischargedSOC();
 
     lastStation = nextStation();
     goingForward = isGoingForward(goingForward);
 
     timeInStation = 0;
-}
+}}
 
 /**
     - calculate the new recharged SOC
     - resetting clock
 */
-void departing(){
+void departing(){{
     SOC = ((SOC + Crec*rechargeTimeRequired()) &lt;? SOCmax);
 
     timeTravelling = 0;    
     maxTimeForNextStation = maximumTimeRequired(); // debug
-}
+}}
 
 // TODO: check link railways indexes</declaration>
 		<location id="id0" x="-44115" y="-44302">
@@ -238,17 +237,17 @@ nTimesRetried++</label>
 const int capacity = pCapacity; // Max number of trains that the station can contain
 int[0,capacity] N = 0;          // number of trains present in a station
 
-void trainDeparted() {
+void trainDeparted() {{
     N--;
-}
+}}
 
-void trainArrived() {
+void trainArrived() {{
     N++;
-}
+}}
 
-bool canEnter() {
+bool canEnter() {{
     return N&lt;capacity;
-}</declaration>
+}}</declaration>
 		<location id="id6" x="-204" y="-51">
 			<name x="-187" y="-59">TrainsWaiting</name>
 			<urgent/>
@@ -297,86 +296,29 @@ Ch = Station(4, 2); // Chiari
 Ro = Station(5, 3); // Rovato
 Bs = Station(6, 5); // Brescia
 
-// Train instantiations
+// Train instantiations 
+// int SOC0, int SOCmax, int V, int pCdis, int pCrec, int station, bool forward
+t0 = Train(60, 100, {V}, {Cdis}, {Crec}, 0, true);
+t1 = Train(60, 100, {V}, {Cdis}, {Crec}, 0, true);
+t2 = Train(60, 100, {V}, {Cdis}, {Crec}, 0, true);
+t3 = Train(60, 100, {V}, {Cdis}, {Crec}, 4, true);
+t4 = Train(60, 100, {V}, {Cdis}, {Crec}, 4, true);
+
 /** 
  * With this model we will pass or fail the safety tests deciding the "chargingPolicy" 
  * in Declarations. With policy 1 we will pass, with policy 2 we will fail.
- */ 
-// int SOC0, int SOCmax, int V, int pCdis, int pCrec, int station, bool forward
-t0 = Train(60, 100, 120, 3, 6, 0, true);
-t1 = Train(60, 100, 120, 3, 6, 0, true);
-t2 = Train(60, 100, 120, 3, 6, 0, true);
-t3 = Train(60, 100, 120, 3, 6, 4, true);
-t4 = Train(60, 100, 120, 3, 6, 4, true);
-
-
+ */
 /*
-t0 = Train(60, 100, 120, 3, 6, 0, true);
-t1 = Train(60, 100, 120, 3, 6, 0, true);
-t2 = Train(60, 100, 120, 3, 6, 0, true);
-t3 = Train(60, 100, 120, 3, 6, 4, true);
-t4 = Train(60, 100, 120, 3, 6, 4, true);
+t0 = Train(60, 100, 120, 4, 12, 0, true);
+t1 = Train(60, 100, 120, 4, 12, 0, true);
+t2 = Train(60, 100, 120, 4, 12, 0, true);
+t3 = Train(60, 100, 120, 4, 12, 4, true);
+t4 = Train(60, 100, 120, 4, 12, 4, true);
 */
 
 // List one or more processes to be composed into a system.
 system t0, t1, t2, t3, t4, MC, ML, Tr, RL, Ch, Ro, Bs;</system>
 	<queries>
-		<query>
-			<formula>A[] (t0.SOC &lt;= t0.SOCmax and
-t1.SOC &lt;= t1.SOCmax and
-t2.SOC &lt;= t2.SOCmax and
-t3.SOC &lt;= t3.SOCmax and
-t4.SOC &lt;= t4.SOCmax)</formula>
-			<comment>CORRECTNESS: Check that the trains won't ever exceed SOCmax</comment>
-		</query>
-		<query>
-			<formula>A[] (t0.lastStation==0 imply t0.goingForward==1) and (t0.lastStation==(N_STATIONS-1) imply t0.goingForward==0) and
-(t1.lastStation==0 imply t1.goingForward==1) and (t1.lastStation==(N_STATIONS-1) imply t1.goingForward==0) and
-(t2.lastStation==0 imply t2.goingForward==1) and (t2.lastStation==(N_STATIONS-1) imply t2.goingForward==0) and
-(t3.lastStation==0 imply t3.goingForward==1) and (t3.lastStation==(N_STATIONS-1) imply t3.goingForward==0) and
-(t4.lastStation==0 imply t4.goingForward==1) and (t4.lastStation==(N_STATIONS-1) imply t4.goingForward==0)</formula>
-			<comment>CORRECTNESS: Check that every time a train reaches one of the two final stations, the train will continue in the right direction</comment>
-		</query>
-		<query>
-			<formula>A[] MC.N &lt;= MC.capacity and
-ML.N &lt;= ML.capacity and
-Tr.N &lt;= Tr.capacity and
-RL.N &lt;= RL.capacity and
-Ch.N &lt;= Ch.capacity and
-Ro.N &lt;= Ro.capacity and
-Bs.N &lt;= Bs.capacity</formula>
-			<comment>CORRECTNESS: Check that every station will always have less or equal trains than the station capacity</comment>
-		</query>
-		<query>
-			<formula>A[] MC.N &gt;= 0 and
-ML.N &gt;= 0 and
-Tr.N &gt;= 0 and
-RL.N &gt;= 0 and
-Ch.N &gt;= 0 and
-Ro.N &gt;= 0 and
-Bs.N &gt;= 0</formula>
-			<comment>CORRECTNESS: Check that every station won't ever have a negative number of trains</comment>
-		</query>
-		<query>
-			<formula>A[] (t0.Init imply (t0.SOC &gt;= t0.Cdis*t0.estimatedTimeTravelling())) and
-(t1.Init imply (t1.SOC &gt;= t1.Cdis*t1.estimatedTimeTravelling())) and
-(t2.Init imply (t2.SOC &gt;= t2.Cdis*t2.estimatedTimeTravelling())) and
-(t3.Init imply (t3.SOC &gt;= t3.Cdis*t3.estimatedTimeTravelling())) and
-(t4.Init imply (t4.SOC &gt;= t4.Cdis*t4.estimatedTimeTravelling()))</formula>
-			<comment>CORRECTNESS: check that every train have enough initial power to reach the next station</comment>
-		</query>
-		<query>
-			<formula>A[] (t0.SOCmax &gt;= (maxDistance*t0.Cdis*60/t0.V)) and 
-(t1.SOCmax &gt;= (maxDistance*t1.Cdis*60/t1.V)) and 
-(t2.SOCmax &gt;= (maxDistance*t2.Cdis*60/t2.V)) and 
-(t3.SOCmax &gt;= (maxDistance*t3.Cdis*60/t3.V)) and 
-(t4.SOCmax &gt;= (maxDistance*t4.Cdis*60/t4.V))</formula>
-			<comment>CORRECTNESS: Check that the train, with his maximum charge, can travel for the maximum distance when the station has tracks available (best case)</comment>
-		</query>
-		<query>
-			<formula></formula>
-			<comment></comment>
-		</query>
 		<query>
 			<formula>A[] t0.SOC &gt;= 0 and 
 t1.SOC &gt;= 0 and 
@@ -393,57 +335,6 @@ t4.SOC &gt;= 0</formula>
 (t4.waitToEnter imply (t4.timeTravelling &lt;= t4.maximumTimeAvailable()))</formula>
 			<comment>SAFETY: Check that the trains will always reach the stations in time, not exceeding the maximum time available</comment>
 		</query>
-		<query>
-			<formula>A[] not deadlock </formula>
-			<comment>SAFETY: Check that the system won't deadlock</comment>
-		</query>
-		<query>
-			<formula></formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t0.charging --&gt; t0.travelling</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t0.travelling --&gt; t0.charging</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t1.charging --&gt; t1.travelling</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t1.travelling --&gt; t1.charging</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t2.charging --&gt; t2.travelling</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t2.travelling --&gt; t2.charging</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t3.charging --&gt; t3.travelling</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t3.travelling --&gt; t3.charging</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t4.charging --&gt; t4.travelling</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>t4.travelling --&gt; t4.charging</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula></formula>
-			<comment></comment>
-		</query>
 	</queries>
 </nta>
+"""

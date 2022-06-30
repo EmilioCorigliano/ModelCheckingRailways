@@ -320,24 +320,6 @@ t4 = Train(60, 100, 120, 4, 12, 4, true);
 system t0, t1, t2, t3, MC, ML, Tr, RL, Ch, Ro, Bs;</system>
 	<queries>
 		<query>
-			<formula>A[] (t0.Init imply (t0.SOC &gt;= t0.Cdis*t0.estimatedTimeTravelling())) and
-(t1.Init imply (t1.SOC &gt;= t1.Cdis*t1.estimatedTimeTravelling())) and
-(t2.Init imply (t2.SOC &gt;= t2.Cdis*t2.estimatedTimeTravelling())) and
-(t3.Init imply (t3.SOC &gt;= t3.Cdis*t3.estimatedTimeTravelling()))</formula>
-			<comment>CORRECTNESS: check that every train have enough initial power to reach the next station</comment>
-		</query>
-		<query>
-			<formula>A[] (t0.SOCmax &gt;= (maxDistance*t0.Cdis*60/t0.V)) and 
-(t1.SOCmax &gt;= (maxDistance*t1.Cdis*60/t1.V)) and 
-(t2.SOCmax &gt;= (maxDistance*t2.Cdis*60/t2.V)) and 
-(t3.SOCmax &gt;= (maxDistance*t3.Cdis*60/t3.V))</formula>
-			<comment>CORRECTNESS: State that </comment>
-		</query>
-		<query>
-			<formula></formula>
-			<comment></comment>
-		</query>
-		<query>
 			<formula>A[] t0.SOC &gt;= 0 and 
 t1.SOC &gt;= 0 and 
 t2.SOC &gt;= 0 and 
