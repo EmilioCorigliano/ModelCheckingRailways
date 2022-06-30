@@ -6,7 +6,7 @@
  * 1: Just the time necessary to arrive without exceeding the maximum delay
  * 2: filling all the battery every time
 */
-const int chargingStrategy = 2; 
+const int chargingStrategy = 1;
 /** resubmission time [min] */
 const int R = 1;          
 /** Minimum time to pass in a station [min] */      
@@ -27,10 +27,10 @@ typedef struct {
 
 const Link railway_small[N_STATIONS-1] = {
     {8, 5},  // Milano Centrale - Milano Lambrate
-    {17, 5},  // Milano Lambrate - Treviglio
-    {13, 5},  // Treviglio - Romano
-    {13, 5},  // Romano - Chiari
-    {10, 5},  // Chiari - Rovato
+    {17, 5}, // Milano Lambrate - Treviglio
+    {13, 5}, // Treviglio - Romano
+    {13, 5}, // Romano - Chiari
+    {10, 5}, // Chiari - Rovato
     {15, 5}  // Rovato - Brescia
 };
 
@@ -50,19 +50,21 @@ const int maxDistance = maxTimeForStations();
 	<template>
 		<name>Train</name>
 		<parameter>const int C0, const int Cmax, const int pV, const int pCdis, const int pCrec, const int station, const bool forward</parameter>
-		<declaration>const int SOCmax = Cmax;           // State Of Charge [min]
-const int V = pV;               // Speed [Km/h]
-int SOC = C0;              // State Of Charge [min]
-const int Cdis = pCdis;            // Rate of discharge [min/min_discharge]
-const int Crec = pCrec;            // Rate of recharge  [min/min_recharge]
+		<declaration>const int SOCmax = Cmax;     // State Of Charge [min]
+const int V = pV;            // Speed [Km/h]
+int SOC = C0;                // State Of Charge [min]
+const int Cdis = pCdis;      // Rate of discharge [min/min_discharge]
+const int Crec = pCrec;      // Rate of recharge  [min/min_recharge]
 int nTimesRetried = 0;       // Times the train had to request the entering to the station
 int[0,N_STATIONS-1] lastStation = station;   // index of the last station where the train has been (or is)
 bool goingForward = forward; // direction of the train
 clock timeInStation;         // time spent charging the battery
 clock timeTravelling;        // time spent discharging the battery
-clock timeForResubmission;
+clock timeForResubmission;   // time spent waiting for the next resubmission
 
 int maxTimeForNextStation;   // Debug info
+
+/* HELPER FUNCTIONS */
 
 bool isGoingForward(bool actualState){
     return (lastStation == 0 ? 
@@ -101,36 +103,24 @@ int maximumTimeRequired(){
     } else if (chargingStrategy == 2) {
         // filling all the battery every time
         timeToRecharge = SOCmax;
-    } else {
-        // PUT SOMETHING HERE
     }
 
-    /// policy of recharging
     return timeToRecharge;
 }
 
 int calculateDischargedSOC(){
-    // return SOC - (Cdis*fint(timeTravelling));
     return SOC - (Cdis*(estimatedTimeTravelling() + nTimesRetried*R));
 }
 
+/** 
+ * convert maxTimeRequired in charge required for the battery, 
+ * take the amount of charge needed 
+ */
 int rechargeTimeRequired(){
-    /* convert maxTimeRequired in charge required for the battery, 
-        take the amount of charge needed 
-    */
     return ((((maximumTimeRequired()*Cdis - SOC)/Crec)+1) &gt;? 0);
 }
 
-
-/**
-    - true if the train exceeded the maximum delay
-    - false if the train is still in the acceptable range
-*/
-bool exceededMaxDelay(){
-    return fint(timeTravelling) &gt; (estimatedTimeTravelling() + nextMaxDelay());
-}
-
-/* State functions */
+/* STATE FUNCTIONS */
 /**
     - updating lastStation
     - calculate the new discharged SOC
@@ -234,7 +224,7 @@ nTimesRetried++</label>
 	<template>
 		<name>Station</name>
 		<parameter>const int pIndex, const int pCapacity</parameter>
-		<declaration>int index = pIndex;              // index that corresponds to this station in the channels array
+		<declaration>int index = pIndex;             // index that corresponds to this station in the channels array
 const int capacity = pCapacity; // Max number of trains that the station can contain
 int[0,capacity] N = 0;          // number of trains present in a station
 
@@ -288,7 +278,24 @@ bool canEnter() {
 			<nail x="-416" y="9"/>
 		</transition>
 	</template>
-	<system>// Stations (#, capacity)
+	<system>// Train instantiations
+/** 
+ * With this model we will pass or fail the safety tests deciding the "chargingPolicy" 
+ * in Declarations. With policy 1 we will pass, with policy 2 we will fail.
+ * 
+ * Other than this, we can change everything here and the systems will adapt 
+ * to the variation of parameters
+ */ 
+// Trains
+// (int SOC0, int SOCmax, int V, int pCdis, int pCrec, int station, bool forward)
+t0 = Train(60, 100, 120, 3, 6, 0, true);
+t1 = Train(60, 100, 120, 3, 6, 0, true);
+t2 = Train(60, 100, 120, 3, 6, 0, true);
+t3 = Train(60, 100, 120, 3, 6, 4, true);
+t4 = Train(60, 100, 120, 3, 6, 4, true);
+
+// Stations 
+// (index, capacity)
 MC = Station(0, 5); // Milano Centrale
 ML = Station(1, 4); // Milano Lambrate
 Tr = Station(2, 3); // Treviglio
@@ -296,27 +303,6 @@ RL = Station(3, 2); // Romano di Lombardia
 Ch = Station(4, 2); // Chiari
 Ro = Station(5, 3); // Rovato
 Bs = Station(6, 5); // Brescia
-
-// Train instantiations
-/** 
- * With this model we will pass or fail the safety tests deciding the "chargingPolicy" 
- * in Declarations. With policy 1 we will pass, with policy 2 we will fail.
- */ 
-// int SOC0, int SOCmax, int V, int pCdis, int pCrec, int station, bool forward
-t0 = Train(60, 100, 120, 3, 6, 0, true);
-t1 = Train(60, 100, 120, 3, 6, 0, true);
-t2 = Train(60, 100, 120, 3, 6, 0, true);
-t3 = Train(60, 100, 120, 3, 6, 4, true);
-t4 = Train(60, 100, 120, 3, 6, 4, true);
-
-
-/*
-t0 = Train(60, 100, 120, 3, 6, 0, true);
-t1 = Train(60, 100, 120, 3, 6, 0, true);
-t2 = Train(60, 100, 120, 3, 6, 0, true);
-t3 = Train(60, 100, 120, 3, 6, 4, true);
-t4 = Train(60, 100, 120, 3, 6, 4, true);
-*/
 
 // List one or more processes to be composed into a system.
 system t0, t1, t2, t3, t4, MC, ML, Tr, RL, Ch, Ro, Bs;</system>
